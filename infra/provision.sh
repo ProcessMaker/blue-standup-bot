@@ -151,7 +151,7 @@ if [[ -z "${EXISTING_APP_ID}" || "${EXISTING_APP_ID}" == "null" ]]; then
   log "Creating Entra application ${APP_DISPLAY_NAME}"
   APP_ID="$(az ad app create \
     --display-name "${APP_DISPLAY_NAME}" \
-    --sign-in-audience AzureADandPersonalMicrosoftAccount \
+    --sign-in-audience AzureADMultipleOrgs \
     --query appId -o tsv)"
   # Create service principal
   az ad sp create --id "${APP_ID}" --output none 2>/dev/null || true
@@ -161,7 +161,7 @@ else
   az ad sp create --id "${APP_ID}" --output none 2>/dev/null || true
   # Keep multi-tenant so the bot can be installed in other orgs (e.g. company Teams).
   az ad app update --id "${APP_ID}" \
-    --sign-in-audience AzureADandPersonalMicrosoftAccount \
+    --sign-in-audience AzureADMultipleOrgs \
     --output none 2>/dev/null \
     || warn "Could not set sign-in audience to multi-tenant (may need portal)"
 fi
@@ -447,6 +447,33 @@ az functionapp config appsettings set \
   --resource-group "${RESOURCE_GROUP}" \
   --settings "${SETTINGS[@]}" \
   --output none
+
+# --- Function App CORS ---
+# Azure answers OPTIONS at the host. Without allowed origins here, preflight
+# returns 204 with no Access-Control-Allow-Origin → browser "Failed to fetch".
+# TAB_ORIGIN app setting still drives ACAO on non-OPTIONS responses from code.
+log "Configure Function App CORS"
+CORS_ORIGINS=()
+IFS=',' read -ra _CORS_PARTS <<< "${TAB_ORIGIN},http://localhost:5173,http://127.0.0.1:5173"
+for _o in "${_CORS_PARTS[@]}"; do
+  _o="${_o#"${_o%%[![:space:]]*}"}"
+  _o="${_o%"${_o##*[![:space:]]}"}"
+  [[ -z "${_o}" ]] && continue
+  _seen=0
+  for _existing in "${CORS_ORIGINS[@]+"${CORS_ORIGINS[@]}"}"; do
+    if [[ "${_existing}" == "${_o}" ]]; then
+      _seen=1
+      break
+    fi
+  done
+  [[ "${_seen}" -eq 0 ]] && CORS_ORIGINS+=("${_o}")
+done
+az functionapp cors add \
+  --name "${FUNCTION_APP}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --allowed-origins "${CORS_ORIGINS[@]}" \
+  --output none \
+  || warn "Could not set Function App CORS — tab API may fail OPTIONS preflight"
 
 # --- Write .envrc ---
 log "Updating .envrc"

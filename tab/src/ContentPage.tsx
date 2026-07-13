@@ -255,17 +255,14 @@ export function ContentPage() {
   const addPeople = async () => {
     setError(null);
     try {
-      const picked = await openPeoplePicker();
+      const picked = await openPeoplePicker({
+        setSelected: draft.users.map((u) => u.userAadId),
+      });
       if (picked.length === 0) {
         return;
       }
-      setDraft((prev) => {
-        const map = new Map(prev.users.map((u) => [u.userAadId, u] as const));
-        for (const p of picked) {
-          map.set(p.userAadId, p);
-        }
-        return { ...prev, users: Array.from(map.values()) };
-      });
+      // selectPeople returns the full selection (including preselected), so replace.
+      setDraft((prev) => ({ ...prev, users: picked }));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

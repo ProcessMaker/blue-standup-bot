@@ -104,7 +104,7 @@ Tab URLs (production Pages):
 3. Functions validate the Entra JWT (`aud` / JWKS / optional `ALLOWED_TENANT_IDS`).
 4. There is **no owner/admin** role — any valid token may manage standups for the `teamId` in the path.
 
-Set Function App setting `TAB_ORIGIN` to allowed CORS origins (e.g. `https://processmaker.github.io,http://localhost:5173`).
+Set Function App setting `TAB_ORIGIN` to allowed CORS origins (e.g. `https://processmaker.github.io,http://localhost:5173`). `provision.sh` also sets **platform** CORS on the Function App (`az functionapp cors`) — required for OPTIONS preflight; without it the tab shows “Failed to fetch”.
 
 ## API (authenticated)
 
@@ -141,7 +141,8 @@ See `.envrc` (from `provision.sh`) and `local.settings.json.example`:
 - `MicrosoftAppTenantId` — publisher home tenant
 - `SQL_CONNECTION_STRING`
 - `BotServiceUrl`
-- `TAB_ORIGIN` — CORS allowlist for the tab
+- `TAB_ORIGIN` — CORS allowlist for the tab (response headers); platform CORS is set separately by `provision.sh`
+
 - `ALLOWED_TENANT_IDS` — optional comma-separated tenant restrict list
 
 Tab build:

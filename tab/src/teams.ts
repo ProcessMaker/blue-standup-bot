@@ -20,108 +20,36 @@ export async function getAuthToken(): Promise<string> {
   return microsoftTeams.authentication.getAuthToken();
 }
 
-export function peoplePickerCard(): Record<string, unknown> {
-  return {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    type: "AdaptiveCard",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        text: "Add standup users",
-        weight: "Bolder",
-        size: "Medium",
-      },
-      {
-        type: "TextBlock",
-        text: "Search and select people to remind about standup.",
-        wrap: true,
-      },
-      {
-        type: "Input.ChoiceSet",
-        id: "users",
-        isMultiSelect: true,
-        style: "filtered",
-        placeholder: "Search for people",
-        choices: [],
-        "choices.data": {
-          type: "Data.Query",
-          dataset: "graph.microsoft.com/users?scope=currentContext",
-        },
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Submit",
-        title: "Add",
-        data: { action: "addUsers" },
-      },
-    ],
-  };
-}
-
-/** Parse Adaptive Card people picker submit values into AAD ids. */
-export function parseSelectedUserIds(raw: unknown): string[] {
-  if (raw == null) {
-    return [];
-  }
-  if (Array.isArray(raw)) {
-    return raw.map(String).filter(Boolean);
-  }
-  if (typeof raw === "string") {
-    return raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  if (typeof raw === "object") {
-    const obj = raw as Record<string, unknown>;
-    if (Array.isArray(obj.userIds)) {
-      return obj.userIds.map(String);
-    }
-    if (typeof obj.userIds === "string") {
-      return parseSelectedUserIds(obj.userIds);
-    }
-  }
-  return [];
-}
-
-export async function openPeoplePicker(): Promise<
-  { userAadId: string; displayName: string | null }[]
-> {
+/** Teams native people picker for tabs (returns AAD object ids + display names). */
+export async function openPeoplePicker(options?: {
+  setSelected?: string[];
+}): Promise<{ userAadId: string; displayName: string | null }[]> {
   await ensureTeamsApp();
-  if (!microsoftTeams.dialog?.adaptiveCard?.open) {
-    throw new Error("Adaptive Card dialog is not available in this client");
+  if (!microsoftTeams.people?.isSupported?.() || !microsoftTeams.people.selectPeople) {
+    throw new Error("People picker is not available in this client");
   }
 
-  return new Promise((resolve, reject) => {
-    microsoftTeams.dialog.adaptiveCard.open(
-      {
-        card: JSON.stringify(peoplePickerCard()),
-        title: "Add people",
-        size: { height: 400, width: 500 },
-      },
-      (result) => {
-        if (result.err) {
-          // User cancelled
-          if (String(result.err).toLowerCase().includes("cancel")) {
-            resolve([]);
-            return;
-          }
-          reject(new Error(String(result.err)));
-          return;
-        }
-        const data = (result.result ?? {}) as Record<string, unknown>;
-        const ids = parseSelectedUserIds(data.users);
-        resolve(
-          ids.map((id) => ({
-            userAadId: id,
-            displayName: null,
-          }))
-        );
-      }
-    );
-  });
+  try {
+    const picked = await microsoftTeams.people.selectPeople({
+      title: "Add standup users",
+      openOrgWideSearchInChatOrChannel: true,
+      singleSelect: false,
+      setSelected: options?.setSelected,
+    });
+    return (picked ?? [])
+      .filter((p) => Boolean(p.objectId))
+      .map((p) => ({
+        userAadId: p.objectId,
+        displayName: p.displayName ?? null,
+      }));
+  } catch (err) {
+    const sdkErr = err as { errorCode?: number; message?: string };
+    // 8000 = USER_ABORT (user cancelled the picker)
+    if (sdkErr?.errorCode === 8000) {
+      return [];
+    }
+    throw err instanceof Error ? err : new Error(String(err));
+  }
 }
 
 export async function registerTabConfig(params: {
