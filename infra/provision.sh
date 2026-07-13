@@ -181,6 +181,9 @@ else
     --query password -o tsv)"
 fi
 
+TAB_BASE_URL="${TAB_BASE_URL:-https://processmaker.github.io/blue-standup-bot}"
+TAB_ORIGIN="${TAB_ORIGIN:-https://processmaker.github.io}"
+
 # No Microsoft Graph application permissions — configurator is the Teams installer
 # (recorded on install / first configure). People picker is client-side Adaptive Card.
 
@@ -217,9 +220,11 @@ else
     --output none || true
 fi
 
-# Application ID URI required for webApplicationInfo.resource in the Teams manifest
-log "Ensure Entra Application ID URI api://botid-${APP_ID}"
-az ad app update --id "${APP_ID}" --identifier-uris "api://botid-${APP_ID}" --output none 2>/dev/null \
+# Application ID URI must include the tab host for getAuthToken() (iframe origin match).
+TAB_HOST="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${TAB_ORIGIN}'.split(',')[0].strip()).netloc)")"
+APP_ID_URI="api://${TAB_HOST}/botid-${APP_ID}"
+log "Ensure Entra Application ID URI ${APP_ID_URI}"
+az ad app update --id "${APP_ID}" --identifier-uris "${APP_ID_URI}" --output none 2>/dev/null \
   || warn "Could not set identifier URI (may already be set or need portal)"
 
 log "Ensure Entra exposed API scope access_as_user (Teams tab getAuthToken)"
@@ -420,8 +425,6 @@ fi
 
 # --- Function App settings ---
 log "Configure Function App settings"
-TAB_BASE_URL="${TAB_BASE_URL:-https://processmaker.github.io/blue-standup-bot}"
-TAB_ORIGIN="${TAB_ORIGIN:-https://processmaker.github.io}"
 FUNCTION_HOST="${FUNCTION_APP}.azurewebsites.net"
 SETTINGS=(
   "AzureWebJobsStorage=${STORAGE_CONNECTION}"
@@ -508,9 +511,11 @@ with open(path) as f:
 m["id"] = app_id
 if m.get("bots"):
     m["bots"][0]["botId"] = app_id
+from urllib.parse import urlparse
+tab_host = urlparse("${TAB_ORIGIN}".split(",")[0].strip()).netloc or "processmaker.github.io"
 m["webApplicationInfo"] = {
     "id": app_id,
-    "resource": f"api://botid-{app_id}",
+    "resource": f"api://{tab_host}/botid-{app_id}",
 }
 if m.get("configurableTabs"):
     m["configurableTabs"][0]["configurationUrl"] = f"{tab_base}/#/config"

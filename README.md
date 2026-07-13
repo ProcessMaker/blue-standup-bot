@@ -41,7 +41,7 @@ func azure functionapp publish "$AZURE_FUNCTION_APP"
 
 # 5. Deploy tab (GitHub Action) — set repo Variables:
 #    VITE_API_BASE_URL=https://<function-app>.azurewebsites.net
-#    VITE_TEAMS_APP_RESOURCE=api://botid-<MicrosoftAppId>
+#    VITE_TEAMS_APP_RESOURCE=api://processmaker.github.io/botid-<MicrosoftAppId>
 # Then push to main (or run "Deploy tab to GitHub Pages" manually).
 
 # 6. Package and sideload the Teams app
@@ -72,7 +72,8 @@ Point the Azure Bot messaging endpoint at a public tunnel ending in `/api/messag
 cd tab
 cp .env.example .env
 # Set VITE_API_BASE_URL (tunnel or Azure Function URL)
-# Set VITE_TEAMS_APP_RESOURCE=api://botid-<appId>
+# Set VITE_TEAMS_APP_RESOURCE=api://processmaker.github.io/botid-<appId>
+# (local: api://localhost:5173/botid-<appId> — also add that URI in Entra)
 npm install
 npm run dev
 ```
@@ -124,7 +125,7 @@ Set Function App setting `TAB_ORIGIN` to allowed CORS origins (e.g. `https://pro
 
 ## Manual steps
 
-1. **Entra** — Supported accounts multi-tenant + Application ID URI `api://botid-{appId}`; exposed scope `access_as_user` pre-authorized for Teams clients (`provision.sh` attempts this).
+1. **Entra** — Supported accounts multi-tenant + Application ID URI `api://processmaker.github.io/botid-{appId}` (tab host must match the iframe origin); exposed scope `access_as_user` pre-authorized for Teams clients (`provision.sh` attempts this).
 2. **Sideload** the Teams app zip into each team (Manage team → Apps).
 3. **GitHub Pages** — Repo Settings → Pages → Source: GitHub Actions. Set Variables `VITE_API_BASE_URL` and `VITE_TEAMS_APP_RESOURCE`.
 4. **Privacy / Terms URLs** in `teams/manifest.json` still point at `https://example.com/...` — replace before wider distribution.
@@ -146,7 +147,7 @@ See `.envrc` (from `provision.sh`) and `local.settings.json.example`:
 Tab build:
 
 - `VITE_API_BASE_URL`
-- `VITE_TEAMS_APP_RESOURCE` (e.g. `api://botid-<appId>`)
+- `VITE_TEAMS_APP_RESOURCE` (e.g. `api://processmaker.github.io/botid-<appId>`)
 
 ## Cost notes
 

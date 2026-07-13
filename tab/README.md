@@ -18,4 +18,4 @@ GitHub Action `.github/workflows/deploy-tab.yml` builds and deploys `dist/` to G
 Set repo Variables:
 
 - `VITE_API_BASE_URL`
-- `VITE_TEAMS_APP_RESOURCE` (`api://botid-<appId>`)
+- `VITE_TEAMS_APP_RESOURCE` (`api://processmaker.github.io/botid-<appId>`)

@@ -25,7 +25,32 @@ function getJwks(tenantKey: string) {
 }
 
 function allowedAudiences(appId: string): string[] {
-  return [appId, `api://botid-${appId}`, `api://${appId}`];
+  const audiences = new Set<string>([
+    appId,
+    `api://botid-${appId}`,
+    `api://${appId}`,
+  ]);
+
+  // Tab SSO resource URIs include the iframe host (must match webApplicationInfo.resource).
+  for (const origin of getEnv("TAB_ORIGIN")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
+    try {
+      const host = new URL(origin).host;
+      audiences.add(`api://${host}/${appId}`);
+      audiences.add(`api://${host}/botid-${appId}`);
+    } catch {
+      // ignore invalid origins
+    }
+  }
+
+  const explicit = getEnv("TEAMS_APP_RESOURCE").trim();
+  if (explicit) {
+    audiences.add(explicit);
+  }
+
+  return Array.from(audiences);
 }
 
 function parseAllowedTenants(): string[] | null {
