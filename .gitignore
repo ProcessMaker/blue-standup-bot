@@ -1,0 +1,12 @@
+node_modules/
+dist/
+local.settings.json
+.env
+.env.local
+*.zip
+blue-standup-bot.zip
+.azure/
+.vscode/
+.DS_Store
+*.log
+.envrc

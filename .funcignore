@@ -1,0 +1,30 @@
+# Local / tooling — do not ship to Azure
+.git*
+.vscode
+.cursor
+.env*
+.DS_Store
+*.log
+*.md
+*.zip
+local.settings.json
+local.settings.json.example
+PRD.md
+
+# Source & infra (runtime uses dist/)
+src
+infra
+teams
+tsconfig.json
+
+# Dev-only packages (core-tools alone is ~1.5GB and breaks host startup)
+node_modules/azure-functions-core-tools/**
+node_modules/typescript/**
+node_modules/@types/**
+node_modules/rimraf/**
+node_modules/.bin/func
+node_modules/.bin/azfun
+node_modules/.bin/azurefunctions
+node_modules/.bin/tsc
+node_modules/.bin/tsserver
+node_modules/.bin/rimraf

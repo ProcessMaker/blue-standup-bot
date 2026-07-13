@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "2.0.0",
+  "id": "838cd3d2-c558-4d1f-973d-4ece1b417367",
+  "developer": {
+    "name": "Blue Standup Bot",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/terms"
+  },
+  "name": {
+    "short": "Blue Standup Bot",
+    "full": "Blue Standup Bot"
+  },
+  "description": {
+    "short": "Weekday standup reminders via DM",
+    "full": "Configure multiple weekday standup reminders from a channel tab. Anyone on the team can manage standups. The bot DMs configured people with a custom message."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#2563EB",
+  "bots": [
+    {
+      "botId": "838cd3d2-c558-4d1f-973d-4ece1b417367",
+      "scopes": [
+        "team"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "configurableTabs": [
+    {
+      "configurationUrl": "https://processmaker.github.io/blue-standup-bot/#/config",
+      "canUpdateConfiguration": true,
+      "scopes": [
+        "team"
+      ],
+      "context": [
+        "channelTab"
+      ]
+    }
+  ],
+  "webApplicationInfo": {
+    "id": "838cd3d2-c558-4d1f-973d-4ece1b417367",
+    "resource": "api://botid-838cd3d2-c558-4d1f-973d-4ece1b417367"
+  },
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "blue-standup-bot-fn.azurewebsites.net",
+    "processmaker.github.io",
+    "token.botframework.com"
+  ]
+}

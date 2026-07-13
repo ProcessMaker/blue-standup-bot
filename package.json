@@ -1,0 +1,32 @@
+{
+  "name": "blue-standup-bot",
+  "version": "2.0.0",
+  "description": "Microsoft Teams standup reminder bot with channel tab configuration",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc && mkdir -p dist/src/db && cp src/db/schema.sql dist/src/db/schema.sql",
+    "watch": "tsc -w",
+    "clean": "rimraf dist",
+    "prestart": "npm run clean && npm run build",
+    "start": "func start",
+    "apply-schema": "npm run build && node dist/src/db/apply-schema.js",
+    "package:teams": "cd teams && zip -r ../blue-standup-bot.zip manifest.json color.png outline.png",
+    "validate:teams": "npm run package:teams && npx --yes @microsoft/m365agentstoolkit-cli@latest validate --package-file ./blue-standup-bot.zip --interactive false"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.1",
+    "botbuilder": "^4.23.2",
+    "jose": "^6.2.3",
+    "mssql": "^11.0.1"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.5",
+    "@types/node": "^22.20.1",
+    "azure-functions-core-tools": "^4.0.6610",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.2"
+  }
+}
