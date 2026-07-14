@@ -15,9 +15,11 @@ RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-rg-blue-standup-bot}"
 STORAGE_ACCOUNT="${AZURE_STORAGE_ACCOUNT:-bluestandupbotstore}"
 BOT_NAME="${AZURE_BOT_NAME:-blue-standup-bot}"
 FUNCTION_APP="${AZURE_FUNCTION_APP:-blue-standup-bot-fn}"
-SQL_SERVER="${AZURE_SQL_SERVER:-bluestandupbotsql3}"
-SQL_DB="${AZURE_SQL_DB:-blue_standup}"
+SQL_SERVER="${AZURE_SQL_SERVER:-bluestandupbotsql3centralus}"
+SQL_DB="${AZURE_SQL_DB:-blue-standup-free-db}"
 SQL_ADMIN_USER="${AZURE_SQL_ADMIN_USER:-sqladmin}"
+# Set AZURE_SQL_RESET_PASSWORD=1 to rotate admin password on an existing server
+SQL_RESET_PASSWORD="${AZURE_SQL_RESET_PASSWORD:-0}"
 APP_DISPLAY_NAME="${AZURE_APP_DISPLAY_NAME:-Blue Standup Bot}"
 APP_INSIGHTS="${AZURE_APP_INSIGHTS:-blue-standup-bot-ai}"
 # Comma-separated fallbacks when a region refuses new SQL servers
@@ -287,25 +289,40 @@ if ! az bot msteams show --name "${BOT_NAME}" --resource-group "${RESOURCE_GROUP
     --output none || warn "Could not create Teams channel (may already exist or need portal)"
 fi
 
-# --- SQL Server + Database (serverless) ---
-if [[ -z "${AZURE_SQL_ADMIN_PASSWORD:-}" ]]; then
-  # Generate a strong password if not provided; persist to .envrc
-  SQL_ADMIN_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)Aa1!"
-else
-  SQL_ADMIN_PASSWORD="${AZURE_SQL_ADMIN_PASSWORD}"
-fi
+# --- SQL Server + Database (Always Free offer) ---
+# Password handling: never silently rotate an existing server's admin password.
+# - New server: generate a password if AZURE_SQL_ADMIN_PASSWORD is unset.
+# - Existing server: require AZURE_SQL_ADMIN_PASSWORD; only rotate when AZURE_SQL_RESET_PASSWORD=1.
+maybe_reset_sql_password() {
+  local server_name="$1"
+  if [[ "${SQL_RESET_PASSWORD}" == "1" ]]; then
+    log "Resetting SQL admin password on ${server_name} (AZURE_SQL_RESET_PASSWORD=1)"
+    az sql server update \
+      --name "${server_name}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --admin-password "${SQL_ADMIN_PASSWORD}" \
+      --output none
+  fi
+}
 
 log "Ensure SQL server (preferred location ${SQL_LOCATION})"
 az provider register --namespace Microsoft.Sql --wait >/dev/null 2>&1 || true
 if az sql server show --name "${SQL_SERVER}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  # Reset password so we know the current secret for connection string
-  az sql server update \
-    --name "${SQL_SERVER}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --admin-password "${SQL_ADMIN_PASSWORD}" \
-    --output none
+  if [[ -z "${AZURE_SQL_ADMIN_PASSWORD:-}" ]]; then
+    echo "ERROR: SQL server ${SQL_SERVER} already exists. Set AZURE_SQL_ADMIN_PASSWORD to the known admin password." >&2
+    echo "To rotate it instead, set AZURE_SQL_ADMIN_PASSWORD=<new> AZURE_SQL_RESET_PASSWORD=1." >&2
+    exit 1
+  fi
+  SQL_ADMIN_PASSWORD="${AZURE_SQL_ADMIN_PASSWORD}"
+  maybe_reset_sql_password "${SQL_SERVER}"
   SQL_LOCATION="$(az sql server show --name "${SQL_SERVER}" --resource-group "${RESOURCE_GROUP}" --query location -o tsv)"
 else
+  if [[ -z "${AZURE_SQL_ADMIN_PASSWORD:-}" ]]; then
+    # Generate a strong password for new servers; persist to .envrc
+    SQL_ADMIN_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)Aa1!"
+  else
+    SQL_ADMIN_PASSWORD="${AZURE_SQL_ADMIN_PASSWORD}"
+  fi
   SQL_CREATED=0
   CANDIDATE_LOCATIONS="${SQL_LOCATION}"
   IFS=',' read -ra _FALLBACKS <<< "${SQL_LOCATION_FALLBACKS}"
@@ -324,13 +341,15 @@ else
     # Azure SQL server names: lowercase alphanumeric, 1-63 chars
     CANDIDATE_SERVER="$(echo "${CANDIDATE_SERVER}" | tr '[:upper:]' '[:lower:]' | cut -c1-63)"
     if az sql server show --name "${CANDIDATE_SERVER}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+      if [[ -z "${AZURE_SQL_ADMIN_PASSWORD:-}" ]]; then
+        echo "ERROR: SQL server ${CANDIDATE_SERVER} already exists. Set AZURE_SQL_ADMIN_PASSWORD to the known admin password." >&2
+        echo "To rotate it instead, set AZURE_SQL_ADMIN_PASSWORD=<new> AZURE_SQL_RESET_PASSWORD=1." >&2
+        exit 1
+      fi
+      SQL_ADMIN_PASSWORD="${AZURE_SQL_ADMIN_PASSWORD}"
       SQL_SERVER="${CANDIDATE_SERVER}"
       SQL_LOCATION="$(az sql server show --name "${SQL_SERVER}" --resource-group "${RESOURCE_GROUP}" --query location -o tsv)"
-      az sql server update \
-        --name "${SQL_SERVER}" \
-        --resource-group "${RESOURCE_GROUP}" \
-        --admin-password "${SQL_ADMIN_PASSWORD}" \
-        --output none
+      maybe_reset_sql_password "${SQL_SERVER}"
       SQL_CREATED=1
       break
     fi
@@ -388,7 +407,7 @@ if [[ -n "${PUBLIC_IP}" ]]; then
     --output none 2>/dev/null || true
 fi
 
-log "Ensure SQL database ${SQL_DB} (serverless Gen5)"
+log "Ensure SQL database ${SQL_DB} (Always Free offer)"
 if ! az sql db show --name "${SQL_DB}" --server "${SQL_SERVER}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   az sql db create \
     --name "${SQL_DB}" \
@@ -396,10 +415,10 @@ if ! az sql db show --name "${SQL_DB}" --server "${SQL_SERVER}" --resource-group
     --resource-group "${RESOURCE_GROUP}" \
     --edition GeneralPurpose \
     --family Gen5 \
-    --capacity 1 \
+    --capacity 2 \
     --compute-model Serverless \
-    --auto-pause-delay 60 \
-    --min-capacity 0.5 \
+    --use-free-limit true \
+    --free-limit-exhaustion-behavior AutoPause \
     --backup-storage-redundancy Local \
     --output none
 fi

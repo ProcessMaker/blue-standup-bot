@@ -154,6 +154,6 @@ Tab build:
 
 - Bot Service **F0**
 - Functions **Consumption (Y1)**
-- SQL Database **serverless** with auto-pause
+- SQL Database **Always Free** offer (General Purpose serverless; monthly vCore/storage limits; AutoPause when exhausted)
 
-Monitor Azure Cost Management; serverless SQL and Functions still bill beyond free allowances.
+Monitor Azure Cost Management; the free SQL offer has monthly limits, and Functions still bill beyond free allowances.

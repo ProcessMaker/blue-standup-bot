@@ -7,7 +7,7 @@
     "MicrosoftAppPassword": "",
     "MicrosoftAppType": "SingleTenant",
     "MicrosoftAppTenantId": "",
-    "SQL_CONNECTION_STRING": "Server=tcp:YOUR_SERVER.database.windows.net,1433;Database=blue_standup;User ID=sqladmin;Password=YOUR_PASSWORD;Encrypt=true;TrustServerCertificate=false;",
+    "SQL_CONNECTION_STRING": "Server=tcp:YOUR_SERVER.database.windows.net,1433;Database=blue-standup-free-db;User ID=sqladmin;Password=YOUR_PASSWORD;Encrypt=true;TrustServerCertificate=false;",
     "TAB_ORIGIN": "https://processmaker.github.io,http://localhost:5173",
     "ALLOWED_TENANT_IDS": ""
   }
